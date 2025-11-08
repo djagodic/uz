@@ -1,0 +1,2 @@
+# uz
+Umetno zaznavanje
