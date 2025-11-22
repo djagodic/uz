@@ -1,0 +1,5 @@
+Dodatna naloga A6g - Linear discriminant analysis:
+- pretvori kodo iz slajdov v python (pazi na indekse - matlab začne z 1, pa tam oni malo drugače eigenvektorje dobijo); pazi na obliko stolpčnih vektorjev mean in ostalih pri računanju Sb ter Sw, hitro se zgodi da numpy 'pomaga' in broadcasta zadeve kjer nebi hotu -> indeksiraj z X[:, [i]] namesto z X[:, i]
+- podatke vseh 3 datasetov združi v eno tabelo (in normaliziraš)
+- izvedi pca nad vsem skupaj in projeciraj točke
+- vzameš projecirane točke od pca in **prvih nekaj komponent** daš v lda, pri projeciranju v lda seveda vzameš povprečje točk iz pca prostora (lda vrača središča centoidov, česar nočeš)

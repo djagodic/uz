@@ -1,0 +1,58 @@
+def compute_save_histograms(image_dir, n_bins=8, save_path="histograms.npy"):
+    """
+    Compute 3D RGB histograms for all images in a directory and save them as 1D arrays.
+    
+    Parameters
+    ----------
+    image_dir : str
+        Path to the folder with images
+    n_bins : int
+        Number of bins per channel
+    save_path : str
+        Path to save the resulting numpy array of histograms
+    
+    Returns
+    -------
+    image_files : list of str
+        Sorted list of image filenames
+    histograms : np.ndarray
+        Array of flattened histograms, shape = (num_images, n_bins**3)
+    """
+
+
+def retrieve_similar_images(query_idx, image_files, histograms, distance="l2", top_k=5):
+    """
+    Display query image and top_k most similar images based on histogram distance.
+    
+    Parameters
+    ----------
+    query_idx : int
+        Index of the query image
+    image_files : list of str
+        List of filenames corresponding to histograms
+    histograms : np.ndarray
+        Flattened histograms of all images
+    distance : str
+        Distance measure: "l2", "chi2", "intersection", "hellinger"
+    top_k : int
+        Number of most similar images to display
+    """
+
+
+def plot_histogram_distances(query_idx, histograms, top_k=5, distance="l2"):
+    """
+    Plot distances of all images to a reference query image.
+    
+    Parameters
+    ----------
+    query_idx : int
+        Index of the query image.
+    histograms : np.ndarray
+        Flattened histograms of all images.
+    top_k : int
+        Number of most similar images to highlight.
+    distance : str
+        Distance measure: "l2", "chi2", "intersection", "hellinger".
+    """
+
+
