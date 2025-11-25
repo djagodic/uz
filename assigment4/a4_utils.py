@@ -2,7 +2,6 @@ import numpy as np
 import cv2, random
 from matplotlib import pyplot as plt
 
-
 def gauss(sigma):
 	x = np.arange(np.floor(-3 * sigma), np.ceil(3 * sigma + 1))
 	k = np.exp(-(x ** 2) / (2 * sigma ** 2))
@@ -15,7 +14,6 @@ def gaussdx(sigma):
 	k = -x * np.exp(-(x ** 2) / (2 * sigma ** 2))
 	k /= np.sum(np.abs(k))
 	return np.expand_dims(k, 0)
-
 
 def convolve(I: np.ndarray, *ks):
 	"""
@@ -30,8 +28,7 @@ def convolve(I: np.ndarray, *ks):
 		I = cv2.filter2D(I, cv2.CV_64F, k)
 	return I
 
-
-def simple_descriptors(I, Y, X, n_bins = 16, radius = 40, sigma = 2):
+def simple_descriptors(I, Y, X, n_bins = 16, window_size = 40, sigma = 2):
 	"""
 	Computes descriptors for locations given in X and Y.
 
@@ -63,10 +60,10 @@ def simple_descriptors(I, Y, X, n_bins = 16, radius = 40, sigma = 2):
 	desc = []
 
 	for y, x in zip(Y, X):
-		miny = max(y - radius, 0)
-		maxy = min(y + radius, I.shape[0])
-		minx = max(x - radius, 0)
-		maxx = min(x + radius, I.shape[1])
+		miny = max(y - window_size, 0)
+		maxy = min(y + window_size, I.shape[0])
+		minx = max(x - window_size, 0)
+		maxx = min(x + window_size, I.shape[1])
 		r1 = mag[miny:maxy, minx:maxx].reshape(-1)
 		r2 = feat[miny:maxy, minx:maxx].reshape(-1)
 
@@ -81,31 +78,34 @@ def simple_descriptors(I, Y, X, n_bins = 16, radius = 40, sigma = 2):
 
 	return np.array(desc)
 
+def display_matches(im1, im2, pts1, pts2, matches, ms=10, lw=0.5):
 
-def display_matches(I1, pts1, I2, pts2):
 	"""
 	Displays matches between images.
-
-	I1, I2: Image in grayscale.
-	pts1, pts2: Nx2 arrays of coordinates of feature points for each image (first columnt is x, second is y coordinates)
+	Arguments:
+	im1, im2: first and second image
+	pts1, pts2: Nx2 arrays of coordinates of feature points for each image (first columnt is x, second is y)
+	matches: Nx2 list of symmetrically matched feature points between images
+	ms: marker size used for plotting
+	lw: line width used for plotting
 	"""
 
-	assert I1.shape[0] == I2.shape[0] and I1.shape[1] == I2.shape[1], "Images need to be of the same size."
-
-	I = np.hstack((I1, I2))
-	w = I1.shape[1]
+	I = np.hstack((im1,im2))
+	w = im1.shape[1]
+	plt.clf()
 	plt.imshow(I, cmap='gray')
 
-	for p1, p2 in zip(pts1, pts2):
-		x1 = p1[0]
-		y1 = p1[1]
-		x2 = p2[0]
-		y2 = p2[1]
-		plt.plot(x1, y1, 'bo', markersize=3)
-		plt.plot(x2 + w, y2, 'bo', markersize=3)
-		plt.plot([x1, x2 + w], [y1, y2], 'r', linewidth=.8)
+	for idx, (i, j) in enumerate(matches):
+		p1 = pts1[int(i)]
+		p2 = pts2[int(j)]
 
-	plt.show()
+		clr = np.random.rand(3,) # random color
+		plt.plot(p1[0],p1[1], color=clr, marker='.', markersize=ms) # plot feature points for im1
+		plt.plot(p2[0]+w,p2[1], color=clr, marker='.', markersize=ms) # plot feature points for im2
+		plt.plot([p1[0],p2[0]+w],[p1[1],p2[1]], color=clr, linewidth=lw) # plot lines connecting the feature points
+
+	plt.draw()
+	plt.waitforbuttonpress()
 
 def get_line_equation(p1, p2):
 

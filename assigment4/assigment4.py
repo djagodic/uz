@@ -150,38 +150,41 @@ graf_color = cv2.imread("./data/graf/graf_a.jpg", cv2.IMREAD_COLOR)  # BGR
 graf_color = cv2.cvtColor(graf_color, cv2.COLOR_BGR2RGB)
 graf = cv2.cvtColor(graf_color, cv2.COLOR_RGB2GRAY).astype(np.float64) / 255
 
-points3_harris = hessian_points(graf, sigma=3, thresh=0.2)
-points3 = non_maxima_suppression(points3_harris, box_size=7, thresh=0.5)
-points7_harris = hessian_points(graf, sigma=7, thresh=0.2)
-points7 = non_maxima_suppression(points7_harris, box_size=5, thresh=0.5)
-points13_harris = hessian_points(graf, sigma=13, thresh=0.2)
-points13 = non_maxima_suppression(points13_harris, box_size=5, thresh=0.4)
+points1_hessian = hessian_points(graf, sigma=1, thresh=0.2)
+points1 = non_maxima_suppression(points1_hessian, box_size=7, thresh=0.6, unique_max=True)
+points2_hessian = hessian_points(graf, sigma=2, thresh=0.2)
+points2 = non_maxima_suppression(points2_hessian, box_size=7, thresh=0.7, unique_max=True)
+points3_hessian = hessian_points(graf, sigma=3, thresh=0.2)
+points3 = non_maxima_suppression(points3_hessian, box_size=7, thresh=0.55, unique_max=True)
 
 
 plt.figure(figsize=(15, 8))
 plt.subplot(2, 3, 1)
-plt.imshow(points3_harris, cmap="gray")
-plt.title("σ=3")
+plt.imshow(points1_hessian, cmap="gray")
+plt.title("σ=1")
 plt.axis('off')
 plt.subplot(2, 3, 2)
-plt.imshow(points7_harris, cmap="gray")
-plt.title("σ=7")
+plt.imshow(points2_hessian, cmap="gray")
+plt.title("σ=2")
 plt.axis('off')
 plt.subplot(2, 3, 3)
-plt.imshow(points13_harris, cmap="gray")
-plt.title("σ=13")
+plt.imshow(points3_hessian, cmap="gray")
+plt.title("σ=3")
 plt.axis('off')
 plt.subplot(2, 3, 4)
-plot_points(graf_color, points3)
+plot_points(graf_color, points1)
 plt.axis('off')
 plt.subplot(2, 3, 5)
-plot_points(graf_color, points7)
+plot_points(graf_color, points2)
 plt.axis('off')
 plt.subplot(2, 3, 6)
-plot_points(graf_color, points13)
+plot_points(graf_color, points3)
 plt.axis('off')
 
 plt.show()
+
+# QUESTION: What kind of structures in the image are detected by the algorithm? How does the parameter sigma affect the result?
+#           We are detecting corners, the greater the sigma the less corners we get -> the smaller one starts to disappear
 
 #b)
 def harris(image, sigma, thresh):
@@ -206,35 +209,35 @@ graf_color = cv2.imread("./data/graf/graf_a.jpg", cv2.IMREAD_COLOR)  # BGR
 graf_color = cv2.cvtColor(graf_color, cv2.COLOR_BGR2RGB)
 graf = cv2.cvtColor(graf_color, cv2.COLOR_RGB2GRAY).astype(np.float64) / 255
 
+points1_harris = harris(graf, sigma=1, thresh=0.2)
+points1 = non_maxima_suppression(points1_harris, box_size=7, thresh=0.45, unique_max=True)
+points2_harris = harris(graf, sigma=2, thresh=0.2)
+points2 = non_maxima_suppression(points2_harris, box_size=7, thresh=0.65, unique_max=True)
 points3_harris = harris(graf, sigma=3, thresh=0.2)
-points3 = non_maxima_suppression(points3_harris, box_size=7, thresh=0.6)
-points7_harris = harris(graf, sigma=7, thresh=0.2)
-points7 = non_maxima_suppression(points7_harris, box_size=7, thresh=0.5)
-points13_harris = harris(graf, sigma=13, thresh=0.2)
-points13 = non_maxima_suppression(points13_harris, box_size=7, thresh=0.59)
+points3 = non_maxima_suppression(points3_harris, box_size=7, thresh=0.55, unique_max=True)
 
 
 plt.figure(figsize=(15, 8))
 plt.subplot(2, 3, 1)
+plt.imshow(points1_harris, cmap="gray")
+plt.title("σ=1")
+plt.axis('off')
+plt.subplot(2, 3, 2)
+plt.imshow(points2_harris, cmap="gray")
+plt.title("σ=2")
+plt.axis('off')
+plt.subplot(2, 3, 3)
 plt.imshow(points3_harris, cmap="gray")
 plt.title("σ=3")
 plt.axis('off')
-plt.subplot(2, 3, 2)
-plt.imshow(points7_harris, cmap="gray")
-plt.title("σ=7")
-plt.axis('off')
-plt.subplot(2, 3, 3)
-plt.imshow(points13_harris, cmap="gray")
-plt.title("σ=13")
-plt.axis('off')
 plt.subplot(2, 3, 4)
-plot_points(graf_color, points3)
+plot_points(graf_color, points1)
 plt.axis('off')
 plt.subplot(2, 3, 5)
-plot_points(graf_color, points7)
+plot_points(graf_color, points2)
 plt.axis('off')
 plt.subplot(2, 3, 6)
-plot_points(graf_color, points13)
+plot_points(graf_color, points3)
 plt.axis('off')
 
 plt.show()
@@ -274,35 +277,35 @@ B = cv2.imread("./data/graf/graf_b_small.jpg", cv2.IMREAD_GRAYSCALE).astype(np.f
 
 # Detect points (you can reuse your Hessian/Harris)
 detA = hessian_points(A, sigma=3, thresh=0.2)
-ptsA = non_maxima_suppression(detA, box_size=7, thresh=0.5)
+ptsA = non_maxima_suppression(detA, box_size=5, thresh=0.5)
 detB = hessian_points(B, sigma=3, thresh=0.2)
-ptsB = non_maxima_suppression(detB, box_size=7, thresh=0.5)
+ptsB = non_maxima_suppression(detB, box_size=5, thresh=0.5)
 
 YA, XA = np.nonzero(ptsA)
 YB, XB = np.nonzero(ptsB)
 print("Task a) Detected keypoints: A =", len(XA), " B =", len(XB))
 
 # Compute descriptors
-descA = a4.simple_descriptors(A, YA, XA)
-descB = a4.simple_descriptors(B, YB, XB)
+descA = a4.simple_descriptors(A, YA, XA, n_bins = 16, window_size = 20)
+descB = a4.simple_descriptors(B, YB, XB, n_bins = 16, window_size = 20)
 
 # Match
 corr = find_correspondences(descA, descB)
 
 # Convert correspondences to coordinate pairs
-ptsA_vis = []
-ptsB_vis = []
+# ptsA_vis = []
+# ptsB_vis = []
 
-for a, b in corr:
-    ptsA_vis.append([XA[a], YA[a]])
-    ptsB_vis.append([XB[b], YB[b]])
+# for a, b in corr:
+#     ptsA_vis.append([XA[a], YA[a]])
+#     ptsB_vis.append([XB[b], YB[b]])
 
-ptsA_vis = np.array(ptsA_vis)
-ptsB_vis = np.array(ptsB_vis)
+# ptsA_vis = np.array(ptsA_vis)
+# ptsB_vis = np.array(ptsB_vis)
 
 # Display result
 plt.figure(figsize=(12,5))
-a4.display_matches(A, ptsA_vis, B, ptsB_vis)
+a4.display_matches(A, B, np.column_stack((XA, YA)), np.column_stack((XB, YB)), corr)    #np.column_stack -> Stack 1-D arrays as columns into a 2-D array.
 
 #b)
 def find_matches2(image_A, image_B):
@@ -345,7 +348,7 @@ def find_matches2(image_A, image_B):
     return matches, (XA, YA), (XB, YB)
 
 
-def find_matches(image_A, image_B, sigma=3, thresh_det=0.1, nms_box=7, unique_max=True, desc_radius=35, desc_bins=16):
+def find_matches(image_A, image_B, sigma=3, thresh_det=0.1, nms_box=7, unique_max=True, desc_window_size=35, desc_bins=16):
     # detect keypoints
     detA = hessian_points(image_A, sigma=sigma, thresh=thresh_det)
     detB = hessian_points(image_B, sigma=sigma, thresh=thresh_det)
@@ -359,8 +362,8 @@ def find_matches(image_A, image_B, sigma=3, thresh_det=0.1, nms_box=7, unique_ma
     print("Detected keypoints: A =", len(XA), " B =", len(XB))
 
     # descriptors (simple_descriptors expects (I, Y, X))
-    descA = a4.simple_descriptors(image_A, YA, XA, n_bins=desc_bins, radius=desc_radius, sigma=2)
-    descB = a4.simple_descriptors(image_B, YB, XB, n_bins=desc_bins, radius=desc_radius, sigma=2)
+    descA = a4.simple_descriptors(image_A, YA, XA, n_bins=desc_bins, window_size=desc_window_size, sigma=2)
+    descB = a4.simple_descriptors(image_B, YB, XB, n_bins=desc_bins, window_size=desc_window_size, sigma=2)
     print("Descriptors shapes:", descA.shape, descB.shape)
 
     # find best matches both directions
@@ -384,18 +387,19 @@ B = cv2.imread("./data/graf/graf_b_small.jpg", cv2.IMREAD_GRAYSCALE).astype(np.f
 matches, (XA,YA), (XB,YB) = find_matches(A, B)
 #print("Matches:", len(matches))
 
-ptsA_vis = []
-ptsB_vis = []
+# ptsA_vis = []
+# ptsB_vis = []
 
-for i, j in matches:
-    ptsA_vis.append([XA[i], YA[i]])
-    ptsB_vis.append([XB[j], YB[j]])
+# for i, j in matches:
+#     ptsA_vis.append([XA[i], YA[i]])
+#     ptsB_vis.append([XB[j], YB[j]])
 
-ptsA_vis = np.array(ptsA_vis)
-ptsB_vis = np.array(ptsB_vis)
+# ptsA_vis = np.array(ptsA_vis)
+# ptsB_vis = np.array(ptsB_vis)
 
 plt.figure(figsize=(12,6))
-a4.display_matches(A, ptsA_vis, B, ptsB_vis)
+a4.display_matches(A, B, np.column_stack((XA, YA)), np.column_stack((XB, YB)), matches)
+
 
 
 #______________________________________________________________________________________________________________________________________________________________
