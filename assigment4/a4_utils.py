@@ -92,7 +92,7 @@ def display_matches(im1, im2, pts1, pts2, matches, ms=10, lw=0.5):
 
 	I = np.hstack((im1,im2))
 	w = im1.shape[1]
-	plt.clf()
+	#plt.clf()
 	plt.imshow(I, cmap='gray')
 
 	for idx, (i, j) in enumerate(matches):
