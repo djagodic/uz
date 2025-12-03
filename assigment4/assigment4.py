@@ -59,7 +59,7 @@ def gradient_magnitude(image, sigma):
 
 def hessian_points(image, sigma, thresh):
     I_xx, I_yy = second_partial_derivatives(image, sigma)
-    I_xy, I_yx = second_partial_mixed_derivatives(image, sigma)
+    I_xy, _ = second_partial_mixed_derivatives(image, sigma)
 
     #debug
     # plt.figure(figsize=(12,4))
@@ -85,50 +85,7 @@ def hessian_points(image, sigma, thresh):
 
     return det
 
-def non_maxima_suppression3(det, box_size=3, thresh=0.3):
-    det = np.where(det > thresh, det, 0)
-
-    #non-maxima suppresion
-    suppressed = np.zeros_like(det, dtype=np.float64)
-
-    # paddanje
-    radius = box_size // 2
-    padded = np.pad(det, radius, mode='constant', constant_values=0)
-
-    ys, xs = np.nonzero(det)
-    for y, x in zip(ys, xs):
-        val = det[y, x]
-
-        # Extract neighborhood
-        window = padded[y : y + box_size, x : x + box_size]
-
-        # Check if center is the maximum
-        #if val == np.max(window):
-        #ohrani le ce je edini maximum
-        max_val = np.max(window)
-        if val == max_val and np.sum(window == max_val) == 1:
-            suppressed[y, x] = val
-        
-    return suppressed
-
-def non_maxima_suppression2(det, box_size=3, thresh=0.0):
-    det = np.where(det > thresh, det, 0)
-
-    suppressed = np.zeros_like(det)
-    R = box_size // 2
-    padded = np.pad(det, R)
-
-    ys, xs = np.nonzero(det)
-
-    for y,x in zip(ys,xs):
-        window = padded[y:y+box_size, x:x+box_size]
-        if det[y,x] == np.max(window):
-            suppressed[y,x] = det[y,x]
-
-    return suppressed
-
 def non_maxima_suppression(det, box_size=7, thresh=0.0, unique_max=False):
-    """Keep pixels equal to the local maximum in box_size window (centered)."""
     det = np.where(det > thresh, det, 0.0)
     suppressed = np.zeros_like(det)
     R = box_size // 2
@@ -286,7 +243,7 @@ def find_correspondences(desc1, desc2):
 A = cv2.imread("./data/graf/graf_a_small.jpg", cv2.IMREAD_GRAYSCALE).astype(np.float64)/255
 B = cv2.imread("./data/graf/graf_b_small.jpg", cv2.IMREAD_GRAYSCALE).astype(np.float64)/255
 
-# Detect points (you can reuse your Hessian/Harris)
+# Detect points
 detA = hessian_points(A, sigma=3, thresh=0.2)
 ptsA = non_maxima_suppression(detA, box_size=5, thresh=0.5)
 detB = hessian_points(B, sigma=3, thresh=0.2)
@@ -300,66 +257,15 @@ print("Task a) Detected keypoints: A =", len(XA), " B =", len(XB))
 descA = a4.simple_descriptors(A, YA, XA, n_bins = 16, window_size = 20)
 descB = a4.simple_descriptors(B, YB, XB, n_bins = 16, window_size = 20)
 
-# Match
 corr = find_correspondences(descA, descB)
-
-# Convert correspondences to coordinate pairs
-# ptsA_vis = []
-# ptsB_vis = []
-
-# for a, b in corr:
-#     ptsA_vis.append([XA[a], YA[a]])
-#     ptsB_vis.append([XB[b], YB[b]])
-
-# ptsA_vis = np.array(ptsA_vis)
-# ptsB_vis = np.array(ptsB_vis)
 
 # Display result
 plt.figure(figsize=(12,5))
 plt.title("MATCHES: Hessian keypoints + find_correspondences")
 a4.display_matches(A, B, np.column_stack((XA, YA)), np.column_stack((XB, YB)), corr)    #np.column_stack -> Stack 1-D arrays as columns into a 2-D array.
 
+
 #b)
-def find_matches2(image_A, image_B):
-    detA = hessian_points(image_A, sigma=1.2, thresh=0.04)
-    ptsA = non_maxima_suppression(detA, box_size=7, thresh=0.3)
-
-    detB = hessian_points(image_B, sigma=1.2, thresh=0.04)
-    ptsB = non_maxima_suppression(detB, box_size=7, thresh=0.3)
-
-    YA, XA = np.nonzero(ptsA)
-    YB, XB = np.nonzero(ptsB)
-
-    print("Points A:", len(XA))
-    print("Points B:", len(XB))
-
-
-    descA = a4.simple_descriptors(image_A, YA, XA, radius=25, sigma=1.0)
-    descB = a4.simple_descriptors(image_B, YB, XB, radius=25, sigma=1.0)
-
-    lr = find_correspondences(descA, descB)  # left to right
-    rl = find_correspondences(descB, descA)  # right to left
-
-    lr_map = np.array([b for _, b in lr])   # length = N_A
-    rl_map = np.array([a for a, _ in rl])   # length = N_B
-
-    # # === 4. Select symmetric matches ===
-    # matches = []
-    # for i in range(len(lr_map)):
-    #     j = lr_map[i]      # best match A_i → B_j
-    #     if j < len(rl_map) and rl_map[j] == i:
-    #         matches.append([i, j])
-
-
-    # indices where rl_map[lr_map[i]] == i
-    valid = np.where((lr_map < len(rl_map)) & (rl_map[lr_map] == np.arange(len(lr_map))))[0]
-
-    matches = np.stack([valid, lr_map[valid]], axis=1)
-
-
-    return matches, (XA, YA), (XB, YB)
-
-
 def find_matches(image_A, image_B, sigma=3, thresh_det=0.1, nms_box=7, unique_max=True, desc_window_size=35, desc_bins=16, descriptor="simple"):
     # detect keypoints
     detA = hessian_points(image_A, sigma=sigma, thresh=thresh_det)
@@ -377,10 +283,10 @@ def find_matches(image_A, image_B, sigma=3, thresh_det=0.1, nms_box=7, unique_ma
         descA = sift_descriptors(A, YA, XA)
         descB = sift_descriptors(B, YB, XB)
     else:
-        # descriptors (simple_descriptors expects (I, Y, X))
         descA = a4.simple_descriptors(image_A, YA, XA, n_bins=desc_bins, window_size=desc_window_size, sigma=2)
         descB = a4.simple_descriptors(image_B, YB, XB, n_bins=desc_bins, window_size=desc_window_size, sigma=2)
-        print("Descriptors shapes:", descA.shape, descB.shape)
+    
+    print("Descriptors shapes:", descA.shape, descB.shape)
 
     # find best matches both directions
     lr = find_correspondences(descA, descB)  # list of [i, j]
@@ -403,49 +309,21 @@ B = cv2.imread("./data/graf/graf_b_small.jpg", cv2.IMREAD_GRAYSCALE).astype(np.f
 matches, (XA,YA), (XB,YB) = find_matches(A, B)
 #print("Matches:", len(matches))
 
-# ptsA_vis = []
-# ptsB_vis = []
-
-# for i, j in matches:
-#     ptsA_vis.append([XA[i], YA[i]])
-#     ptsB_vis.append([XB[j], YB[j]])
-
-# ptsA_vis = np.array(ptsA_vis)
-# ptsB_vis = np.array(ptsB_vis)
-
 plt.figure(figsize=(12,6))
 plt.title("MATCHES: Hessian keypoints + simple_descriptor")
 a4.display_matches(A, B, np.column_stack((XA, YA)), np.column_stack((XB, YB)), matches)
 
+
 #c)
-
 def sift_descriptors(image, ys, xs, window_size=16, num_cells=4, num_bins=8, sigma=None):
-    """
-    Computes SIFT-style descriptors using gradient magnitude/angle
-    image: float grayscale 0-1
-    ys, xs: integer keypoint coordinates (row=y, col=x)
-    window_size: size of full patch (default 16x16)
-    num_cells: number of spatial cells per side (default 4)
-    num_bins: orientation histogram bins per cell (default 8)
-    sigma: Gaussian weighting for patch (default 0.5*window_size)
-    Returns: N x 128 descriptor matrix
-    """
-
-    # ----- PARAMETERS -----
-    cell_size = window_size // num_cells      # normally 4 pixels
+    cell_size = window_size // num_cells
     if sigma is None:
         sigma = 0.5 * window_size            # SIFT recommended
-
-    # ----- GRADIENTS -----
-    # Ix, Iy = partial_derivatives(image, 2)
-
-    # mag = np.sqrt(Ix*Ix + Iy*Iy)
-    # ang = (np.arctan2(Iy, Ix) + 2*np.pi) % (2*np.pi)  # angle in [0, 2*pi)
-
+    
     mag, ang = gradient_magnitude(image, sigma)
     ang = (ang + 2*np.pi) % (2*np.pi)
 
-    # ----- GAUSSIAN WEIGHTS -----
+    # Gauss
     g = cv2.getGaussianKernel(window_size, sigma)
     gaussian_window = g @ g.T                         # 16×16 weights
 
@@ -466,7 +344,6 @@ def sift_descriptors(image, ys, xs, window_size=16, num_cells=4, num_bins=8, sig
         patch_mag = mag[y-half:y+half, x-half:x+half]
         patch_ang = ang[y-half:y+half, x-half:x+half]
 
-        # gaussian weight
         w = gaussian_window
 
         # SIFT descriptor array (4x4x8)
@@ -488,7 +365,7 @@ def sift_descriptors(image, ys, xs, window_size=16, num_cells=4, num_bins=8, sig
                 bin_i = int(bin_f) % num_bins
                 bin_w = bin_f - np.floor(bin_f)
 
-                # soft orientation binning
+                # soft orientation binning -> distributes the pixel’s contribution between two orientation bins
                 descriptor[cell_y, cell_x, bin_i] += m * (1 - bin_w)
                 descriptor[cell_y, cell_x, (bin_i+1) % num_bins] += m * bin_w
 
@@ -507,87 +384,6 @@ def sift_descriptors(image, ys, xs, window_size=16, num_cells=4, num_bins=8, sig
     return np.array(descs)
 
 
-def sift_descriptors1(image, ys, xs, window_size=16, num_cells=4, num_bins=8, sigma=0.5):
-    """
-    Computes SIFT-style descriptors using gradient magnitude/angle
-    image: float grayscale 0-1
-    ys, xs: integer keypoint coordinates (row=y, col=x)
-    window_size: size of full patch (default 16x16)
-    num_cells: number of spatial cells per side (default 4)
-    num_bins: orientation histogram bins per cell (default 8)
-    sigma: Gaussian weighting for patch (default 0.5*window_size)
-    Returns: N x 128 descriptor matrix
-    """
-
-    # Compute gradients using your function
-    mag, ang = gradient_magnitude(image, sigma)
-    ang = (ang + 2*np.pi) % (2*np.pi)  # convert to [0,2pi] if needed
-
-    # Prepare Gaussian weighting
-    # g = np.exp(-0.5 * ((np.arange(window_size) - window_size/2 + 0.5)/sigma)**2)
-    # gaussian_window = np.outer(g, g)
-
-    # g = a4.gauss(sigma)  # 1 x N
-    # gaussian_window = g.T @ g  # N x N
-
-    g = cv2.getGaussianKernel(window_size, sigma)
-    gaussian_window = g @ g.T
-
-
-    # Parameters
-    H, W = image.shape
-    cell_size = window_size // num_cells
-    half = window_size // 2
-
-    # Pad magnitude and angle to handle borders
-    pad = half
-    mag_pad = np.pad(mag, pad, mode='reflect')
-    ang_pad = np.pad(ang, pad, mode='reflect')
-
-    descs = []
-
-    for y, x in zip(ys, xs):
-        # shift coordinates due to padding
-        y_p, x_p = y + pad, x + pad
-
-        # extract patch
-        patch_mag = mag_pad[y_p - half:y_p + half, x_p - half:x_p + half]
-        patch_ang = ang_pad[y_p - half:y_p + half, x_p - half:x_p + half]
-
-        # descriptor array
-        descriptor = np.zeros((num_cells, num_cells, num_bins))
-
-        # fill histograms
-        for i in range(window_size):
-            for j in range(window_size):
-                m = patch_mag[i, j] * gaussian_window[i, j]
-                theta = patch_ang[i, j]
-
-                # cell index
-                cell_y = i // cell_size
-                cell_x = j // cell_size
-
-                # orientation bin
-                bin_f = (theta / (2*np.pi)) * num_bins
-                bin_i = int(bin_f) % num_bins
-                bin_w = bin_f - np.floor(bin_f)
-
-                # soft binning
-                descriptor[cell_y, cell_x, bin_i] += m * (1 - bin_w)
-                descriptor[cell_y, cell_x, (bin_i+1) % num_bins] += m * bin_w
-
-        # flatten + normalize + clip + renormalize
-        d = descriptor.flatten()
-        d /= (np.linalg.norm(d) + 1e-10)
-        d = np.clip(d, 0, 0.2)
-        d /= (np.linalg.norm(d) + 1e-10)
-
-        descs.append(d)
-
-    return np.array(descs)
-
-
-
 matches, (XA,YA), (XB,YB) = find_matches(A, B, descriptor="sift")
 plt.figure(figsize=(12,6))
 plt.title("MATCHES: Hessian keypoints + SIFT descriptor")
@@ -598,19 +394,16 @@ a4.display_matches(A, B, np.column_stack((XA, YA)), np.column_stack((XB, YB)), m
 # 3. Better repeatability under viewpoint change
 # 4. Stronger matching performance
 
-#d)
 
+#d)
 # Load video
-cap = cv2.VideoCapture("20251125_201258.mp4")  # replace with your file
+cap = cv2.VideoCapture("20251125_201258.mp4")
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) // 2)  # downsample for speed
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) // 2)
 fps = cap.get(cv2.CAP_PROP_FPS)
 
 # Output video
-out = cv2.VideoWriter("stabilized_video.mp4",
-                      cv2.VideoWriter_fourcc(*'mp4v'),
-                      fps,
-                      (frame_width, frame_height))
+out = cv2.VideoWriter("stabilized_video.mp4", cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
 
 #------------------------
 
@@ -630,7 +423,7 @@ kp_first, des_first = sift.detectAndCompute(gray_first, None)
 
 bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
 
-# We keep the first frame as reference
+# Keep the first frame as reference
 prev_gray = gray_first
 prev_kp = kp_first
 prev_des = des_first
@@ -667,7 +460,8 @@ while True:
     out.write(stabilized_frame)
 
     # Optional: show progress
-    cv2.imshow("Stabilized", stabilized_frame)
+    combined = np.hstack((frame, stabilized_frame))
+    cv2.imshow("Original (left) vs Stabilized (right)", combined)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
@@ -737,7 +531,6 @@ plt.figure(figsize=(12,6))
 plt.title("Newyork - homography")
 a4.display_matches(img1, img2, pts1, pts2, [[0,0], [1,1], [2,2], [3,3]])
 
-# Estimate homography
 H = estimate_homography(pts1, pts2)
 
 # Warp first image to second
@@ -745,7 +538,6 @@ warped = cv2.warpPerspective(src=img1, M=H, dsize=(img2.shape[1], img2.shape[0])
 print()
 print(H)
 
-# Overlay
 plt.imshow(img2, cmap='gray')
 plt.imshow(warped, cmap='jet', alpha=0.5)
 plt.show()
@@ -764,7 +556,6 @@ plt.figure(figsize=(12,6))
 plt.title("Graf - homography")
 a4.display_matches(img1, img2, pts1, pts2, [[0,0], [1,1], [2,2], [3,3]])
 
-# Estimate homography
 H = estimate_homography(pts1, pts2)
 
 # Warp first image to second
@@ -772,91 +563,13 @@ warped = cv2.warpPerspective(src=img1, M=H, dsize=(img2.shape[1], img2.shape[0])
 print()
 print(H)
 
-# Overlay
 plt.imshow(img2, cmap='gray')
 plt.imshow(warped, cmap='jet', alpha=0.5)
 plt.show()
 
+
 #b) RANSAC
-
-
-def ransac_line2(points, num_iterations=100, distance_thresh=0.05):
-    best_inliers = []
-    best_k, best_n = None, None
-
-    fig, ax = plt.subplots()
-    
-    points_arr = np.array(points)
-
-    for it in range(num_iterations):
-        start = np.random.random(2)
-        end = np.random.random(2)
-        
-        k,n = get_line_equation(start, end)
-
-        # Compute distances
-        distances = np.array([point_line_distance(p, k, n) for p in points])
-        inliers = points_arr[distances < distance_thresh]
-        outliers = points_arr[distances >= distance_thresh]
-        
-        if len(inliers) > len(best_inliers):
-            best_inliers = inliers
-            best_k, best_n = k, n
-
-        # --- Visualization ---
-        ax.cla()
-        ax.plot(points_arr[:,0], points_arr[:,1], 'k.', label='points')
-        if len(inliers) > 0:
-            ax.plot(inliers[:,0], inliers[:,1], 'go', label='inliers')
-        if len(outliers) > 0:
-            ax.plot(outliers[:,0], outliers[:,1], 'ro', label='outliers')
-
-        # Plot current candidate line
-        x_vals = np.array([0, 1])
-        if np.isinf(k):
-            ax.axvline(n, color='r', linestyle='--', label='candidate line')
-        else:
-            ax.plot(x_vals, k*x_vals+n, 'r--', label='candidate line')
-        
-        # Plot best line found so far
-        if best_k is not None:
-            if np.isinf(best_k):
-                ax.axvline(best_n, color='g', linestyle='-', label='best line')
-            else:
-                ax.plot(x_vals, best_k*x_vals+best_n, 'g-', label='best line')
-        
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        plt.axis('square')
-        plt.legend()
-        plt.draw()
-        plt.pause(0.1)
-    
-    plt.show()
-    return best_k, best_n, best_inliers
-
-
-# np.random.seed(42)
-# N = 50
-# noise_scale = 0.1
-
-# # Generate points along a line with noise
-# x_vals = np.linspace(0, 1, N)
-# true_k, true_n = 0.5, 0.2
-# points = []
-# for x in x_vals:
-#     y = true_k*x + true_n + (np.random.random()-0.5)*noise_scale
-#     if 0 <= y <= 1:
-#         points.append((x,y))
-
-# # Run RANSAC
-# k, n, inliers = ransac_line(points, num_iterations=100, distance_thresh=0.05)
-# print("Best line: y = {:.3f}x + {:.3f}, inliers: {}".format(k, n, len(inliers)))
-
-
-
 def get_line_equation(p1, p2):
-    """Return slope and intercept of a line through points p1 and p2."""
     x1, y1 = p1
     x2, y2 = p2
     if x2 == x1:
@@ -868,17 +581,12 @@ def get_line_equation(p1, p2):
     return k, n
 
 def point_line_distance(p, k, n):
-    """Compute perpendicular distance from point p to line y = kx + n (or vertical)."""
     x, y = p
     if np.isinf(k):
         return abs(x - n)
     return abs(k*x - y + n) / np.sqrt(k**2 + 1)
 
 def ransac_line_visual(points, max_iterations=20, distance_thresh=0.05):
-    """
-    Interactive RANSAC line fitting similar to your line_fitting() function.
-    Points are displayed iteratively with inliers/outliers and candidate lines.
-    """
     points_arr = np.array(points)
     best_inliers = []
     best_k, best_n = None, None
@@ -888,7 +596,6 @@ def ransac_line_visual(points, max_iterations=20, distance_thresh=0.05):
     
     for it in range(max_iterations):
         ax.cla()
-        # Shuffle and select 2 random points
         random.shuffle(points)
         p1, p2 = points[:2]
         k, n = get_line_equation(p1, p2)
@@ -924,7 +631,7 @@ def ransac_line_visual(points, max_iterations=20, distance_thresh=0.05):
             else:
                 ax.plot(x_vals, best_k*x_vals + best_n, 'g-', label='best line')
         
-        if len(best_inliers) > 0.9 * len(points):  # 90% of points are inliers
+        if len(best_inliers) > 0.95 * len(points):  # 95% of points are inliers
             break
 
         
@@ -940,7 +647,6 @@ def ransac_line_visual(points, max_iterations=20, distance_thresh=0.05):
     plt.show()
     return best_k, best_n, best_inliers
 
-# --- Example usage ---
 np.random.seed(42)
 N = 50
 noise_scale = 0.1
@@ -959,8 +665,8 @@ print()
 print("Best line: y = {:.3f}x + {:.3f}, inliers: {}".format(k, n, len(inliers)))
 print()
 
-#c)
 
+#c)
 def reprojection_error(H, pts_src, pts_dst):
     """
     pts_src: Nx2 source points
@@ -992,26 +698,23 @@ def ransac_homography(ptsA, ptsB, threshold=3.0, max_iters=1000, early_stop_rati
     for i in range(max_iters):
         num_iterations += 1
 
-        # 1. Randomly select 4 matches
         idx = np.random.choice(N, 4, replace=False)
         sample_A = ptsA[idx]
         sample_B = ptsB[idx]
         
-        # 2. Estimate homography from 4 points
+        # Estimate homography from 4 points
         H = estimate_homography(sample_A, sample_B)
         
-        # 3. Compute reprojection errors
         errors = reprojection_error(H, ptsA, ptsB)
         
-        # 4. Determine inliers
         inliers = np.where(errors < threshold)[0]
         
-        # 5. Update best solution
+        # Update best solution
         if len(inliers) > len(best_inliers):
             best_inliers = inliers
             best_H = H
             
-            # optional early exit if enough inliers
+            # early exit if enough inliers
             if len(best_inliers) > early_stop_ratio * N:
                 break
     
@@ -1041,7 +744,6 @@ print("Symmetric matches count after ransac_homography:", best_inliers.shape[0])
 # Only keep matches that are inliers
 inlier_matches = np.array([[i, i] for i in best_inliers])  # because ptsA[best_inliers] matches ptsB[best_inliers]
 
-# Display filtered matches
 plt.figure(figsize=(12,6))
 plt.title("MATCHES: Hessian keypoints + simple_descriptor + RANSAC + homography")
 a4.display_matches(A, B, ptsA, ptsB, inlier_matches)
@@ -1063,8 +765,8 @@ plt.show()
 # w = probability that a randomly selected point is an inlier (inlier ratio)
 # n = minimal number of points needed to fit the model (for homography, n=4)
 
-# You can roughly estimate w by looking at your matched points and counting how many appear roughly correct. For example, suppose you have 50 matched points, 
-# and after running RANSAC you find 35 inliers, then: w = 32 / 41 = 0.78
+# I can roughly estimate w by looking at my matched points and counting how many appear roughly correct. For example, suppose I have 50 matched points, 
+# and after running RANSAC I find 35 inliers, then: w = 32 / 41 = 0.78
 
 # Typical value: p=0.99 (we want 99% chance of finding at least one all-inlier set).
 
@@ -1075,11 +777,6 @@ plt.show()
 # k ~~ 9,7 iterations
 
 def required_iterations(p, w, n):
-    """
-    Compute required RANSAC iterations k for desired prob p,
-    inlier ratio w, and minimal sample size n.
-    Guards against numeric issues (w^n extremely close to 1).
-    """
     if w <= 0:
         return float('inf')
     denom = 1.0 - w**n
@@ -1182,22 +879,11 @@ def ransac_homography_adaptive(ptsA, ptsB, threshold=3.0, max_iters=1000,
 
 
 #e)
-
-def warp_perspective_manual(img, H):
-    """
-    Manual implementation of perspective warping using a homography matrix H.
-    No interpolation. No holes. Output has the same size as the input.
-    
-    img : HxW grayscale image (float or uint8)
-    H   : 3x3 homography matrix
-    """
-    
+def warp_perspective_manual(img, H): 
     h, w = img.shape[:2]
     #Colour image
     #h, w, c = img.shape
     H_inv = np.linalg.inv(H)
-
-    # Prepare output
     out = np.zeros_like(img)
 
     # Precompute pixel coordinates -> Generate a grid of all target pixels
@@ -1210,14 +896,13 @@ def warp_perspective_manual(img, H):
     #        1,  1,  ...,  1 ]
 
 
-    # Backward mapping: target → source
+    # Backward mapping: target -> source
     src_pts_h = H_inv @ pts
 
     # Normalize
     src_x = src_pts_h[0] / src_pts_h[2]
     src_y = src_pts_h[1] / src_pts_h[2]
 
-    # Round to nearest integer (NO interpolation)
     src_x_round = np.round(src_x).astype(int)
     src_y_round = np.round(src_y).astype(int)
 
@@ -1243,64 +928,16 @@ def warp_perspective_manual(img, H):
     return out
 
 
-def warp_perspective_manual_rgb(img, H):
-    """
-    Manual homography warp for RGB images using backward mapping.
-    No interpolation and no holes.
-    img : input RGB image (H x W x 3)
-    H   : 3x3 homography matrix
-    """
-
-    h, w, c = img.shape
-    H_inv = np.linalg.inv(H)
-
-    # Output image
-    out = np.zeros_like(img)
-
-    # Generate coordinates for each pixel in the output
-    ys, xs = np.indices((h, w))  # shapes (h, w)
-    pts = np.stack([xs.ravel(), ys.ravel(), np.ones(h*w)], axis=1).T  # shape 3 x N
-
-    # Backward warp using inverse homography
-    src_h = H_inv @ pts
-
-    # Convert homogeneous → 2D
-    src_x = src_h[0] / src_h[2]
-    src_y = src_h[1] / src_h[2]
-
-    # Nearest-neighbor (no interpolation allowed)
-    src_x_rounded = np.round(src_x).astype(int)
-    src_y_rounded = np.round(src_y).astype(int)
-
-    # Valid coordinates mask
-    mask = (
-        (src_x_rounded >= 0) & (src_x_rounded < w) &
-        (src_y_rounded >= 0) & (src_y_rounded < h)
-    )
-
-    # Flattened indexing
-    out_flat = out.reshape(-1, 3)    # (N, 3)
-    img_flat = img.reshape(-1, 3)    # (N, 3)
-
-    # Compute indices in the source image
-    src_idx = src_y_rounded * w + src_x_rounded
-
-    # Copy only valid pixels
-    out_flat[mask] = img_flat[src_idx[mask]]
-
-    return out
-
-
-# Forward mapping (source → destination):
+# Forward mapping (source -> destination):
 # - We take each pixel in the source image and push it forward using H.
-# - Problem: many destination pixels never get assigned a value → holes.
+# - Problem: many destination pixels never get assigned a value -> holes.
 # - Because some source pixels may map to the same destination pixel,
 #   while many destination pixels receive nothing.
 # - This is forbidden by the assignment.
 
-# Backward mapping (destination → source):
-# - For each output pixel (x', y'), we apply H⁻¹ to find where it came from:
-#       (x, y) = H⁻¹ * (x', y', 1)
+# Backward mapping (destination -> source):
+# - For each output pixel (x', y'), we apply H^-1 to find where it came from:
+#       (x, y) = H^-1 * (x', y', 1)
 # - Then we copy the value from the source pixel at (x, y).
 # - This guarantees that every output pixel gets exactly one source pixel
 #   (or zero if the mapped coordinates fall outside the source image).
@@ -1317,13 +954,9 @@ plt.figure(figsize=(12,6))
 plt.title("Newyork - homography - manual warp perspective")
 a4.display_matches(img1, img2, pts1, pts2, [[0,0], [1,1], [2,2], [3,3]])
 
-# Estimate homography
 H = estimate_homography(pts1, pts2)
-
-# Warp first image to second
 warped = warp_perspective_manual(img1, H)
 
-# Overlay
 plt.imshow(img2, cmap='gray')
 plt.imshow(warped, cmap='jet', alpha=0.5)
 plt.show()
