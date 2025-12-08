@@ -218,13 +218,6 @@ def hellinger(a, b):
    return np.sqrt(0.5 * np.sum((np.sqrt(a) - np.sqrt(b))**2))
 
 def find_correspondences(desc1, desc2):
-    """
-    desc1: descriptors from first image (N1 * D)
-    desc2: descriptors from second image (N2 * D)
-
-    Returns list of pairs [a, b] meaning:
-    descriptor a from desc1 corresponds to descriptor b from desc2
-    """
     correspondences = []
 
     for i in range(len(desc1)):
