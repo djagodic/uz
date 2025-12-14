@@ -106,8 +106,8 @@ if os.path.exists(l2r_file) and os.path.exists(r2l_file):
     print("Disparities loaded successfully.")
 else:
     # Compute disparities
-    disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
-    disp_R2L = compute_disparity(right, left, patch_size=10, max_disp=80)
+    disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=60)
+    disp_R2L = compute_disparity(right, left, patch_size=10, max_disp=60)
 
     # Save to disk for future use
     np.save(l2r_file, disp_L2R)
@@ -123,7 +123,7 @@ plt.show()
 
 
 #disp_L2R = compute_disparity(left, right, patch_size=10)
-disp_R2L = compute_disparity(right, left, patch_size=10)
+#disp_R2L = compute_disparity(right, left, patch_size=10)
 
 #e)
 # Convert R2L to L2R coordinates:
@@ -163,11 +163,32 @@ for y in range(h):
             reconstructed[y, xr] = left[y, x]
 
 
+# plt.figure(figsize=(12,4))
+# plt.subplot(131); plt.title("Right image"); plt.imshow(right, cmap='gray')
+# plt.subplot(132); plt.title("Reconstructed"); plt.imshow(reconstructed, cmap='gray')
+# plt.subplot(133); plt.title("Difference"); plt.imshow(abs(reconstructed - right), cmap='gray')
+# plt.show()
+
 plt.figure(figsize=(12,4))
-plt.subplot(131); plt.title("Right image"); plt.imshow(right, cmap='gray')
-plt.subplot(132); plt.title("Reconstructed"); plt.imshow(reconstructed, cmap='gray')
-plt.subplot(133); plt.title("Difference"); plt.imshow(abs(reconstructed - right), cmap='gray')
+plt.subplot(131)
+plt.title("Right image (50%)")
+plt.imshow(right, cmap='gray')
+plt.axis('off')
+
+plt.subplot(132)
+plt.title("Filtered disparity")
+plt.imshow(disp_filtered, cmap='jet')
+plt.colorbar()
+plt.axis('off')
+
+plt.subplot(133)
+plt.title("Reconstructed image")
+plt.imshow(reconstructed, cmap='gray')
+plt.axis('off')
+
+plt.tight_layout()
 plt.show()
+
 
 
 #______________________________________________________________________________________________________________________________________________________________
@@ -394,6 +415,81 @@ for p1, p2 in zip(Xl, Xr):
 avg_error = np.mean(errors)
 
 print("Average symmetric reprojection error:", avg_error)
+
+
+
+
+#d)
+
+# Load images
+img1 = cv2.imread("./data/desk/DSC02638.JPG", cv2.IMREAD_GRAYSCALE)
+img2 = cv2.imread("./data/desk/DSC02639.JPG", cv2.IMREAD_GRAYSCALE)
+
+# --- 1. Detect keypoints & descriptors ---
+sift = cv2.SIFT_create()
+kp1, des1 = sift.detectAndCompute(img1, None)
+kp2, des2 = sift.detectAndCompute(img2, None)
+
+# --- 2. Match descriptors using BFMatcher ---
+bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+matches = bf.match(des1, des2)
+matches = sorted(matches, key=lambda x: x.distance)
+
+# Extract point coordinates for matches
+pts1 = np.float32([kp1[m.queryIdx].pt for m in matches])
+pts2 = np.float32([kp2[m.trainIdx].pt for m in matches])
+
+# --- 3. Estimate fundamental matrix with RANSAC ---
+F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC, 1.0, 0.99)
+# mask is 1 for inliers, 0 for outliers
+pts1_inliers = pts1[mask.ravel() == 1]
+pts2_inliers = pts2[mask.ravel() == 1]
+
+print("Estimated Fundamental Matrix:\n", F)
+print(f"Number of inliers: {len(pts1_inliers)}/{len(pts1)}")
+
+# --- 4. Draw matches ---
+plt.figure(figsize=(12,6))
+img_matches = cv2.drawMatches(
+    img1, kp1, img2, kp2, 
+    [matches[i] for i in range(len(matches)) if mask[i]], 
+    None, matchColor=(0,255,0), singlePointColor=(255,0,0)
+)
+plt.imshow(img_matches[:,:,::-1])
+plt.title("Inlier Matches after RANSAC")
+plt.axis("off")
+plt.show()
+
+# --- 5. Draw epipolar lines on images ---
+def draw_epilines(img1, img2, pts1, pts2, F):
+    """Draw epilines in img1 corresponding to pts2"""
+    lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F)
+    lines1 = lines1.reshape(-1,3)
+    
+    img1_color = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
+    img2_color = cv2.cvtColor(img2, cv2.COLOR_GRAY2BGR)
+    
+    for r, pt1, pt2 in zip(lines1, pts1, pts2):
+        color = tuple(np.random.randint(0,255,3).tolist())
+        x0, y0 = map(int, [0, -r[2]/r[1]])
+        x1, y1 = map(int, [img1.shape[1], -(r[2]+r[0]*img1.shape[1])/r[1]])
+        img1_color = cv2.line(img1_color, (x0,y0), (x1,y1), color, 1)
+        img1_color = cv2.circle(img1_color, tuple(pt1.astype(int)), 5, color, -1)
+        img2_color = cv2.circle(img2_color, tuple(pt2.astype(int)), 5, color, -1)
+    
+    return img1_color, img2_color
+
+img1_epi, img2_epi = draw_epilines(img1, img2, pts1_inliers, pts2_inliers, F)
+
+plt.figure(figsize=(12,6))
+plt.subplot(121); plt.imshow(img1_epi[:,:,::-1]); plt.title("Epipolar Lines on Image 1"); plt.axis('off')
+plt.subplot(122); plt.imshow(img2_epi[:,:,::-1]); plt.title("Epipolar Lines on Image 2"); plt.axis('off')
+plt.show()
+
+
+
+
+
 
 
 
