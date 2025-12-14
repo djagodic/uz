@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.cm as cm
 import matplotlib.image as mpimg
-
+import os
 
 #______________________________________________________________________________________________________________________________________________________________
 #EXERCISE 1 
@@ -93,7 +93,29 @@ right = cv2.imread("./data/disparity/office_right.png", cv2.IMREAD_GRAYSCALE)
 left = cv2.resize(left, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 right = cv2.resize(right, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 
-disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
+# disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
+
+# File paths
+l2r_file = "disp_L2R.npy"
+r2l_file = "disp_R2L.npy"
+
+# Check if saved files exist
+if os.path.exists(l2r_file) and os.path.exists(r2l_file):
+    disp_L2R = np.load(l2r_file)
+    disp_R2L = np.load(r2l_file)
+    print("Disparities loaded successfully.")
+else:
+    # Compute disparities
+    disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
+    disp_R2L = compute_disparity(right, left, patch_size=10, max_disp=80)
+
+    # Save to disk for future use
+    np.save(l2r_file, disp_L2R)
+    np.save(r2l_file, disp_R2L)
+    print("Disparities computed successfully.")
+
+
+
 
 plt.imshow(disp_L2R, cmap='jet')
 plt.colorbar()
@@ -110,10 +132,15 @@ h, w = disp_L2R.shape
 
 for y in range(h):
     for x in range(w):
-        d = disp_L2R[y, x]
-        xr = x - d
-        if xr >= 0:
+        # d = disp_L2R[y, x]
+        # xr = x - d
+        # if xr >= 0:
+        #     disp_R2L_shifted[y, x] = disp_R2L[y, xr]
+        d = int(disp_L2R[y, x])
+        xr = int(x - d)
+        if 0 <= xr < w:
             disp_R2L_shifted[y, x] = disp_R2L[y, xr]
+
 
 consistent = np.abs(disp_L2R - disp_R2L_shifted) < 1
 disp_merged = np.where(consistent, disp_L2R, 0)
@@ -126,8 +153,12 @@ reconstructed = np.zeros_like(left)
 # Verification by image warping
 for y in range(h):
     for x in range(w):
-        d = disp_filtered[y, x]
-        xr = x - int(d)
+        # d = disp_filtered[y, x]
+        # xr = x - int(d)
+        # if 0 <= xr < w:
+        #     reconstructed[y, xr] = left[y, x]
+        d = int(disp_filtered[y, x])
+        xr = int(x - d)
         if 0 <= xr < w:
             reconstructed[y, xr] = left[y, x]
 
