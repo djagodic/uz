@@ -90,50 +90,53 @@ def compute_disparity(left, right, patch_size=10, max_disp=80):
 left = cv2.imread("./data/disparity/office_left.png", cv2.IMREAD_GRAYSCALE)
 right = cv2.imread("./data/disparity/office_right.png", cv2.IMREAD_GRAYSCALE)
 
-# disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
+left = cv2.resize(left, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
+right = cv2.resize(right, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 
-# plt.imshow(disp_L2R, cmap='jet')
-# plt.colorbar()
-# plt.show()
+disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
 
-
-# #disp_L2R = compute_disparity(left, right, patch_size=10)
-# disp_R2L = compute_disparity(right, left, patch_size=10)
-
-# #e)
-# # Convert R2L to L2R coordinates:
-# disp_R2L_shifted = np.zeros_like(disp_L2R)
-# h, w = disp_L2R.shape
-
-# for y in range(h):
-#     for x in range(w):
-#         d = disp_L2R[y, x]
-#         xr = x - d
-#         if xr >= 0:
-#             disp_R2L_shifted[y, x] = disp_R2L[y, xr]
-
-# consistent = np.abs(disp_L2R - disp_R2L_shifted) < 1
-# disp_merged = np.where(consistent, disp_L2R, 0)
-# disp_filtered = cv2.medianBlur(disp_merged.astype(np.uint8), 5)
+plt.imshow(disp_L2R, cmap='jet')
+plt.colorbar()
+plt.show()
 
 
-# h, w = left.shape
-# reconstructed = np.zeros_like(left)
+#disp_L2R = compute_disparity(left, right, patch_size=10)
+disp_R2L = compute_disparity(right, left, patch_size=10)
 
-# # Verification by image warping
-# for y in range(h):
-#     for x in range(w):
-#         d = disp_filtered[y, x]
-#         xr = x - int(d)
-#         if 0 <= xr < w:
-#             reconstructed[y, xr] = left[y, x]
+#e)
+# Convert R2L to L2R coordinates:
+disp_R2L_shifted = np.zeros_like(disp_L2R)
+h, w = disp_L2R.shape
+
+for y in range(h):
+    for x in range(w):
+        d = disp_L2R[y, x]
+        xr = x - d
+        if xr >= 0:
+            disp_R2L_shifted[y, x] = disp_R2L[y, xr]
+
+consistent = np.abs(disp_L2R - disp_R2L_shifted) < 1
+disp_merged = np.where(consistent, disp_L2R, 0)
+disp_filtered = cv2.medianBlur(disp_merged.astype(np.uint8), 5)
 
 
-# plt.figure(figsize=(12,4))
-# plt.subplot(131); plt.title("Right image"); plt.imshow(right, cmap='gray')
-# plt.subplot(132); plt.title("Reconstructed"); plt.imshow(reconstructed, cmap='gray')
-# plt.subplot(133); plt.title("Difference"); plt.imshow(abs(reconstructed - right), cmap='gray')
-# plt.show()
+h, w = left.shape
+reconstructed = np.zeros_like(left)
+
+# Verification by image warping
+for y in range(h):
+    for x in range(w):
+        d = disp_filtered[y, x]
+        xr = x - int(d)
+        if 0 <= xr < w:
+            reconstructed[y, xr] = left[y, x]
+
+
+plt.figure(figsize=(12,4))
+plt.subplot(131); plt.title("Right image"); plt.imshow(right, cmap='gray')
+plt.subplot(132); plt.title("Reconstructed"); plt.imshow(reconstructed, cmap='gray')
+plt.subplot(133); plt.title("Difference"); plt.imshow(abs(reconstructed - right), cmap='gray')
+plt.show()
 
 
 #______________________________________________________________________________________________________________________________________________________________
