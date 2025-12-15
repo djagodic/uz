@@ -93,37 +93,26 @@ right = cv2.imread("./data/disparity/office_right.png", cv2.IMREAD_GRAYSCALE)
 left = cv2.resize(left, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 right = cv2.resize(right, (0,0), fx=0.5, fy=0.5, interpolation=cv2.INTER_LINEAR)
 
-# disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=80)
-
 # File paths
 l2r_file = "disp_L2R.npy"
 r2l_file = "disp_R2L.npy"
 
-# Check if saved files exist
 if os.path.exists(l2r_file) and os.path.exists(r2l_file):
     disp_L2R = np.load(l2r_file)
     disp_R2L = np.load(r2l_file)
     print("Disparities loaded successfully.")
 else:
-    # Compute disparities
     disp_L2R = compute_disparity(left, right, patch_size=10, max_disp=60)
     disp_R2L = compute_disparity(right, left, patch_size=10, max_disp=60)
 
-    # Save to disk for future use
     np.save(l2r_file, disp_L2R)
     np.save(r2l_file, disp_R2L)
     print("Disparities computed successfully.")
-
-
-
 
 plt.imshow(disp_L2R, cmap='jet')
 plt.colorbar()
 plt.show()
 
-
-#disp_L2R = compute_disparity(left, right, patch_size=10)
-#disp_R2L = compute_disparity(right, left, patch_size=10)
 
 #e)
 # Convert R2L to L2R coordinates:
@@ -132,10 +121,6 @@ h, w = disp_L2R.shape
 
 for y in range(h):
     for x in range(w):
-        # d = disp_L2R[y, x]
-        # xr = x - d
-        # if xr >= 0:
-        #     disp_R2L_shifted[y, x] = disp_R2L[y, xr]
         d = int(disp_L2R[y, x])
         xr = int(x - d)
         if 0 <= xr < w:
@@ -150,24 +135,16 @@ disp_filtered = cv2.medianBlur(disp_merged.astype(np.uint8), 5)
 h, w = left.shape
 reconstructed = np.zeros_like(left)
 
-# Verification by image warping
+# Verification
 for y in range(h):
     for x in range(w):
-        # d = disp_filtered[y, x]
-        # xr = x - int(d)
-        # if 0 <= xr < w:
-        #     reconstructed[y, xr] = left[y, x]
         d = int(disp_filtered[y, x])
         xr = int(x - d)
         if 0 <= xr < w:
             reconstructed[y, xr] = left[y, x]
 
 
-# plt.figure(figsize=(12,4))
-# plt.subplot(131); plt.title("Right image"); plt.imshow(right, cmap='gray')
-# plt.subplot(132); plt.title("Reconstructed"); plt.imshow(reconstructed, cmap='gray')
-# plt.subplot(133); plt.title("Difference"); plt.imshow(abs(reconstructed - right), cmap='gray')
-# plt.show()
+# offset + compare disparity
 
 plt.figure(figsize=(12,4))
 plt.subplot(131)
@@ -213,11 +190,9 @@ def fundamental_matrix(Xl, Xr):
     if n < 8:
         raise ValueError("Need at least 8 points")
 
-    # --- 1. Normalize points ---
     Xl_norm, T1 = a5.normalize_points(Xl)
     Xr_norm, T2 = a5.normalize_points(Xr)
 
-    # --- 2. Build matrix A ---
     A = []
     for i in range(n):
         u, v = Xl_norm[i, 0], Xl_norm[i, 1]
@@ -225,33 +200,24 @@ def fundamental_matrix(Xl, Xr):
         A.append([u*up, v*up, up, u*vp, v*vp, vp, u, v, 1])
     A = np.array(A)
 
-    # --- 3. Solve Af = 0 using SVD ---
     U, S, VT = np.linalg.svd(A)
     f = VT[-1]
     F = f.reshape(3, 3)
 
-    # --- 4. Enforce rank 2 on F ---
     U2, S2, VT2 = np.linalg.svd(F)
     S2[2] = 0  # force rank 2
     F_rank2 = U2 @ np.diag(S2) @ VT2
 
-    # --- 5. Denormalize ---
     F_final = T2.T @ F_rank2 @ T1
 
-    # --- 6. Compute epipoles ---
     U3, S3, VT3 = np.linalg.svd(F_final)
-    e_left = VT3[-1]          # right nullspace of F = last row of V^T
-    e_right = U3[:, -1]       # left nullspace = last column of U
+    e_left = VT3[-1]
+    e_right = U3[:, -1]
 
     e_left /= e_left[2]
     e_right /= e_right[2]
 
     return F_final, e_left, e_right
-
-
-#epipolar line for point
-# l_right = F @ x
-# l_left = F.T @ x_right
 
 pts7 = np.loadtxt("./data/house/2D/house.007.corners")
 pts8 = np.loadtxt("./data/house/2D/house.008.corners")
@@ -261,7 +227,7 @@ Xl = []
 Xr = []
 
 for idx7, idx8 in matches:
-    if idx7 >= 0 and idx8 >= 0:  # valid match
+    if idx7 >= 0 and idx8 >= 0:
         Xl.append(pts7[idx7])
         Xr.append(pts8[idx8])
 
@@ -308,43 +274,6 @@ for i in range(len(Xl)):
 
 plt.show()
 
-
-
-
-# # Create a figure with 2 subplots side by side
-# fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
-# # --- Image 8 with epilines ---
-# axes[0].imshow(img8[:, :, ::-1])
-# axes[0].set_title("Epipolar lines in image 8")
-# for i in range(len(Xl)):
-#     p1 = np.array([Xl[i, 0], Xl[i, 1], 1])
-#     line = F @ p1
-#     a5.draw_epiline(line, h8, w8, clr='cyan')
-#     axes[0].scatter(Xr[i, 0], Xr[i, 1], c='yellow', s=10)
-
-
-# # --- Image 7 with epilines ---
-# axes[1].imshow(img7[:, :, ::-1])
-# axes[1].set_title("Epipolar lines in image 7")
-# for i in range(len(Xl)):
-#     p2 = np.array([Xr[i, 0], Xr[i, 1], 1])
-#     line = F.T @ p2
-#     a5.draw_epiline(line, h7, w7, clr='magenta')
-#     axes[1].scatter(Xl[i, 0], Xl[i, 1], c='yellow', s=10)
-
-# # Remove axes ticks for a cleaner look
-# for ax in axes:
-#     ax.axis('off')
-
-# plt.tight_layout()
-# plt.show()
-
-
-
-
-
-
 F_ref = np.loadtxt("./data/house/F_7_8.txt")
 error = np.linalg.norm(F / F[2,2] - F_ref / F_ref[2,2])
 print("Difference from reference:", error)
@@ -361,7 +290,6 @@ def point_to_line_distance(point, line):
 
 # (a) ----------------------------------------------------------
 
-#F = np.loadtxt("./data/house/F_7_8.txt")  # Load the reference fundamental matrix
 
 p1 = np.array([160, 463, 1])  # left image
 p2 = np.array([128, 437, 1])  # right image
@@ -374,29 +302,6 @@ error = point_to_line_distance(p2, l_r)
 print("Reprojection error:", error)
 
 # (b) ----------------------------------------------------------
-
-# # Load keypoints
-# pts7 = np.loadtxt("./data/house/2D/house.007.corners")
-# pts8 = np.loadtxt("./data/house/2D/house.008.corners")
-
-# # Load matches using provided helper
-# matches = a5.read_matches("./data/house/2D/house.nview-corners", 7, 8)
-
-# # Extract matching pairs
-# Xl = []
-# Xr = []
-# for m in matches:
-#     if m[0] >= 0 and m[1] >= 0:
-#         Xl.append(pts7[m[0]])
-#         Xr.append(pts8[m[1]])
-
-# Xl = np.array(Xl)
-# Xr = np.array(Xr)
-
-# # Compute F using your function
-# F, e1, e2 = fundamental_matrix(Xl, Xr)
-
-# Compute average symmetric reprojection error
 errors = []
 
 for p1, p2 in zip(Xl, Xr):
@@ -420,17 +325,13 @@ print("Average symmetric reprojection error:", avg_error)
 
 
 #d)
-
-# Load images
 img1 = cv2.imread("./data/desk/DSC02638.JPG", cv2.IMREAD_GRAYSCALE)
 img2 = cv2.imread("./data/desk/DSC02639.JPG", cv2.IMREAD_GRAYSCALE)
 
-# --- 1. Detect keypoints & descriptors ---
 sift = cv2.SIFT_create()
 kp1, des1 = sift.detectAndCompute(img1, None)
 kp2, des2 = sift.detectAndCompute(img2, None)
 
-# --- 2. Match descriptors using BFMatcher ---
 bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
 matches = bf.match(des1, des2)
 matches = sorted(matches, key=lambda x: x.distance)
@@ -439,7 +340,6 @@ matches = sorted(matches, key=lambda x: x.distance)
 pts1 = np.float32([kp1[m.queryIdx].pt for m in matches])
 pts2 = np.float32([kp2[m.trainIdx].pt for m in matches])
 
-# --- 3. Estimate fundamental matrix with RANSAC ---
 F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC, 1.0, 0.99)
 # mask is 1 for inliers, 0 for outliers
 pts1_inliers = pts1[mask.ravel() == 1]
@@ -448,7 +348,6 @@ pts2_inliers = pts2[mask.ravel() == 1]
 print("Estimated Fundamental Matrix:\n", F)
 print(f"Number of inliers: {len(pts1_inliers)}/{len(pts1)}")
 
-# --- 4. Draw matches ---
 plt.figure(figsize=(12,6))
 img_matches = cv2.drawMatches(
     img1, kp1, img2, kp2, 
@@ -460,7 +359,6 @@ plt.title("Inlier Matches after RANSAC")
 plt.axis("off")
 plt.show()
 
-# --- 5. Draw epipolar lines on images ---
 def draw_epilines(img1, img2, pts1, pts2, F):
     """Draw epilines in img1 corresponding to pts2"""
     lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F)
@@ -532,11 +430,9 @@ def triangulate(Xl, Xr, P1, P2):
 
 
 
-# Load 2D points
 pts7 = np.loadtxt("./data/house/2D/house.007.corners")
 pts8 = np.loadtxt("./data/house/2D/house.008.corners")
 
-# Load matches
 matches = a5.read_matches("./data/house/2D/house.nview-corners", 7, 8)
 
 Xl, Xr = [], []
@@ -547,7 +443,6 @@ for i7, i8 in matches:
 Xl = np.array(Xl)
 Xr = np.array(Xr)
 
-# Load projection matrices
 P1 = np.loadtxt("./data/house/3D/house.007.P")
 P2 = np.loadtxt("./data/house/3D/house.008.P")
 
@@ -563,43 +458,17 @@ X3D_t = (T @ X3D.T).T
 
 
 
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-
-# ax.scatter(X3D_t[:,0], X3D_t[:,1], X3D_t[:,2], c='b', s=20)
-
-# # Label each point
-# for i, p in enumerate(X3D_t):
-#     ax.text(p[0], p[1], p[2], str(i), fontsize=8)
-
-# ax.set_xlabel("X")
-# ax.set_ylabel("Y")
-# ax.set_zlabel("Z")
-
-# ax.set_title("Triangulated 3D points (house dataset)")
-
-# plt.show()
-
-
-
-
-# ---- Load images ----
 img7 = mpimg.imread("./data/house/images/house.007.png")
 img8 = mpimg.imread("./data/house/images/house.008.png")
 
-# ---- Number of points ----
 N = X3D_t.shape[0]
 
-# ---- Colormap ----
 colors = cm.tab20(np.linspace(0, 1, N))
 
-# ---- Create figure ----
 fig = plt.figure(figsize=(18, 6))
 fig.suptitle("Triangulation: Image 7 and Image 8", fontsize=18, y=0.98)
 
-# ==========================================================
 # Image 7
-# ==========================================================
 ax1 = fig.add_subplot(1, 3, 1)
 ax1.imshow(img7, cmap="gray")
 ax1.set_title("Image 7")
@@ -609,9 +478,7 @@ for i, (x, y) in enumerate(Xl):
     ax1.scatter(x, y, color=colors[i], s=20)
     ax1.text(x, y, str(i), color=colors[i], fontsize=8)
 
-# ==========================================================
 # Image 8
-# ==========================================================
 ax2 = fig.add_subplot(1, 3, 2)
 ax2.imshow(img8, cmap="gray")
 ax2.set_title("Image 8")
@@ -621,9 +488,7 @@ for i, (x, y) in enumerate(Xr):
     ax2.scatter(x, y, color=colors[i], s=20)
     ax2.text(x, y, str(i), color=colors[i], fontsize=8)
 
-# ==========================================================
 # 3D view
-# ==========================================================
 ax3 = fig.add_subplot(1, 3, 3, projection="3d")
 ax3.set_title("Triangulated 3D points")
 
@@ -647,21 +512,14 @@ plt.show()
 img1 = cv2.imread("./data/house/images/house.001.png", cv2.IMREAD_GRAYSCALE)
 img2 = cv2.imread("./data/house/images/house.004.png", cv2.IMREAD_GRAYSCALE)
 
-# SIFT detector
 sift = cv2.SIFT_create()
 kp1, des1 = sift.detectAndCompute(img1, None)
 kp2, des2 = sift.detectAndCompute(img2, None)
 
-# Brute-force matcher with L2 norm (SIFT descriptors)
 bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-
-# Match descriptors
 matches = bf.match(des1, des2)
-
-# Sort matches by distance (best matches first)
 matches = sorted(matches, key=lambda x: x.distance)
 
-# Extract point coordinates of the top matches
 pts1 = np.array([kp1[m.queryIdx].pt for m in matches])
 pts2 = np.array([kp2[m.trainIdx].pt for m in matches])
 
@@ -671,7 +529,6 @@ print(f"Number of matches: {len(matches)}")
 # OpenCV RANSAC fundamental matrix
 F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC, ransacReprojThreshold=1.0, confidence=0.99)
 
-# Select only inliers
 pts1_inliers = pts1[mask.ravel() == 1]
 pts2_inliers = pts2[mask.ravel() == 1]
 
@@ -682,7 +539,6 @@ P2 = np.loadtxt("./data/house/3D/house.004.P")
 
 X3D = triangulate(pts1_inliers, pts2_inliers, P1, P2)
 
-# Apply the axis transformation
 T = np.array([[-1, 0, 0],
               [0, 0, -1],
               [0, 1, 0]])
@@ -708,7 +564,7 @@ for i, (x,y) in enumerate(pts1_inliers):
     ax1.scatter(x, y, color=colors[i])
     ax1.text(x, y, str(i), color=colors[i], fontsize=8)
 
-# Image 8
+# Image 4
 ax2 = fig.add_subplot(1,3,2)
 ax2.imshow(img2, cmap='gray')
 ax2.set_title("Image 4 keypoints")
