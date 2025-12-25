@@ -742,7 +742,7 @@ for f in files:
 # Compute PCA
 mu, _, U, _ = dualPCA(X)  # D x N
 
-def recognize_face(face_img, mu, U, threshold=5000):
+def recognize_face(face_img, mu, U, threshold=3000):
     """
     face_img: grayscale image (img_shape)
     mu: mean image (D,1)
