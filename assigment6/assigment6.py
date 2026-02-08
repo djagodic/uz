@@ -743,12 +743,6 @@ for f in files:
 mu, _, U, _ = dualPCA(X)  # D x N
 
 def recognize_face(face_img, mu, U, threshold=3000):
-    """
-    face_img: grayscale image (img_shape)
-    mu: mean image (D,1)
-    U: PCA eigenvectors (D,N)
-    threshold: L2 norm threshold to decide recognition
-    """
     x = face_img.reshape(-1,1)
     y = U.T @ (x - mu)
     x_rec = U @ y + mu
